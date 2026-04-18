@@ -26,6 +26,29 @@ The immediate hook is **NJ's ordinal cost-scoring rule** and how it distorts bot
 
 **Reference doc.** Andrew's full brainstorm lives at `/Users/andrewswenson/Documents/Research/School Lunch Docs Brainstorm.pdf` (modeling ideas, policy variation, lit review, to-do list, and meeting notes with Natalia / Adrienne).
 
+## Simulation (Code/ folder)
+
+BNE scoring-auction simulator comparing NJ ordinal, MI cardinal, and a reference-price cardinal rule. Two firms, private costs c_i ~ Uniform[cL_i, cH_i], known quality q_i, one district, one auction. Files: `Code/simulation_functions.R` (BNE solver + welfare integration) and `Code/app.R` (Shiny UI with live bid-function tab, button-triggered welfare-curve tab, summary table).
+
+### Scoring rules in the model
+- **Ordinal (NJ):** `cs_i = S` if cost rank 1, `S − 1` if rank 2.
+- **Cardinal (MI):** `cs_i = max(0, (1 − (b_i − b_min)/b_min) · S)`. Anchored at the realized minimum bid.
+- **Cardinal ref-price:** `cs_i = max(0, (1 − (b_i − p_ref)/p_ref) · S)`. Anchored at a district-announced reference price. Slider defaults to midpoint of the two priors' midpoints and auto-syncs when cost ranges change.
+
+### Key theoretical takeaways from simulation work
+- **Optimal w ≠ λ under any rule.** Even under cardinal, w\* ≠ λ in general: (1) the MI cost score is normalized by b_min (endogenous), so the scoring rule is nonlinear in bids; (2) w also disciplines markups, not just selection — higher w intensifies price competition, so rent-extraction pushes optimal w above what selection alone would dictate. In the symmetric-firms limit, w\* → 1 regardless of λ (selection is trivial, maximal price competition is optimal).
+- **Shut-out = degenerate equilibrium.** When a firm's win probability is zero at every bid (ordinal A1=A2=TRUE "firm1_monopoly" regime, or cardinal with a dominating quality gap), the loser is indifferent across all b ≥ c. The simulator defaults to bid = cost (appears as a flat 45° line in the plot), but any bid above cost is equally a best response. This is economically meaningful output, not a bug: it's telling the user that firm isn't a real competitor under those parameters.
+- **Ref-price cardinal should dominate MI cardinal** in welfare because the score is linear in the bid and exogenous to competitors' bids, giving the district a second instrument (p_ref alongside w) that can tune the rule to match linear utility. Clean argument for the paper: NJ could jump past MI's cardinal and capture even more welfare with a ref-price rule.
+- **Quality is deterministic and common knowledge** in the current model. Empirical evidence from the presentation deck ("quality score dispersion — identical firms score differently across panels") suggests a real-world stochastic component we should eventually model as a second source of uncertainty; should amplify ordinal's distortion further.
+- **Boundary tie-break:** A1/A2 regime checks in `solve_bne` use `>=` (not `>`) to match the `ts1 >= ts2` tie rule in `auction_outcome` — prevents exact-threshold misclassification into a monopoly regime.
+- **Bids above cost is correct behavior** (not a bug). Profit = bid − cost in a procurement auction. Equilibrium bid functions β\*(c) lie above the 45° line because firms shade bids above private cost to earn positive expected profit.
+
+### Known issues / TODOs
+1. **Ref-price cap logic is dumb — fix later.** Current `cs = max(0, (1 − (b − p_ref)/p_ref) · S)` only floors at 0; cost scores exceed S whenever b < p_ref, which creates an artificial unbounded incentive to bid very low. Need to revisit: probably want to anchor the S-cap at the min of realized bids (hybrid with MI's b_min anchoring) so p_ref sets the scoring slope but the lowest-bid firm always scores exactly S. Need to think through whether that breaks the "exogenous scoring" property we liked about this rule, or whether a simple `min(S, ...)` clip at the top is enough.
+2. Extend to private or noisy quality (two-dim private-type BNE, or common q_i plus idiosyncratic panel noise ε_i scored at the auction).
+3. Extend to N > 2 firms.
+4. Reserve price currently set heuristically to 2·max(cH1, cH2); may want to expose it as a district-chosen slider.
+
 ## File Organization
 - `NJ Files/` — State-level NJ documents (forms, contract templates, statewide lists)
 - `NJ Files/OPRA Responses/[District Name]/` — Downloaded response files from each district, one subfolder per district
