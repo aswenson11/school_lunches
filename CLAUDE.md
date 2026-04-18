@@ -44,10 +44,23 @@ BNE scoring-auction simulator comparing NJ ordinal, MI cardinal, and a reference
 - **Bids above cost is correct behavior** (not a bug). Profit = bid − cost in a procurement auction. Equilibrium bid functions β\*(c) lie above the 45° line because firms shade bids above private cost to earn positive expected profit.
 
 ### Known issues / TODOs
+
 1. **Ref-price cap logic is dumb — fix later.** Current `cs = max(0, (1 − (b − p_ref)/p_ref) · S)` only floors at 0; cost scores exceed S whenever b < p_ref, which creates an artificial unbounded incentive to bid very low. Need to revisit: probably want to anchor the S-cap at the min of realized bids (hybrid with MI's b_min anchoring) so p_ref sets the scoring slope but the lowest-bid firm always scores exactly S. Need to think through whether that breaks the "exogenous scoring" property we liked about this rule, or whether a simple `min(S, ...)` clip at the top is enough.
-2. Extend to private or noisy quality (two-dim private-type BNE, or common q_i plus idiosyncratic panel noise ε_i scored at the auction).
-3. Extend to N > 2 firms.
-4. Reserve price currently set heuristically to 2·max(cH1, cH2); may want to expose it as a district-chosen slider.
+
+2. **Private or noisy quality.** Two variants worth modeling, in order of empirical relevance:
+   - **(a) Noisy panel scoring.** q_i is common knowledge ex ante but the realized quality score is `q_i + ε_i`, with ε_i drawn by the evaluation panel. Firms bid against the distribution of their own realized score. This directly matches the "quality score dispersion — identical firms score differently across panels" anomaly from the presentation deck. Expected prediction: ordinal's welfare loss *amplifies* under quality noise, because ordinal is already blind to cost magnitudes and now the quality tiebreak is noisy too — so selection becomes near-random in the monopoly regime.
+   - **(b) Two-dimensional private types.** Firm i draws q_i from a prior G_i and knows it privately; opponents only know the distribution. BNE bid function becomes β_i(c_i, q_i) over two arguments. Useful for modeling firms that are privately heterogeneous in capability (e.g., Aramark's local team quality).
+
+3. **Extend to N > 2 firms.** Empirically central: the deck flags "low entry rates, many auctions attract only 1–2 bidders," but larger/richer districts draw more FSMCs, and variation in N across districts is a primary source of identifying variation for Aims 1 (HHI ↔ outcomes) and 3 (IV via adjacent-market shocks to entry). Implementation notes:
+   - Scoring rules generalize cleanly. Ordinal: `cs_i = max(0, S − rank_i + 1)`. Cardinal (MI): stays anchored at `b_min = min_i b_i`. Ref-price: unchanged (bid-independent of competitors).
+   - BNE solver: `win_prob_i` has to integrate over the joint distribution of the other N−1 opponents' bids. With Uniform costs and symmetric firms this stays tractable via grid integration; asymmetric firms require iterating over a larger collection of β_i functions (one per firm, or one per "type" if firms group into a few categories like national vs. regional FSMCs).
+   - Welfare integration: current outer product is 2-D; with N ≥ 4 prefer Monte Carlo over dense grids.
+   - Minimum useful first version: N symmetric firms with a scalar N slider in the Shiny app, so we can visualize how w\* shifts with market thickness under each rule. Larger N should push optimal w up (more price competition available) and shrink the ordinal–cardinal welfare gap (rank information becomes finer).
+   - Later layer: **endogenous entry** — firms decide whether to pay an entry cost given expected profit, so N is itself a function of (w, rule, cost-distribution priors). This is the natural bridge to Aim 3's IV strategy (shocks to outside-market opportunities shift firms' reservation profits → shift entry → shift realized N).
+
+4. **Asymmetric heterogeneity beyond two firms.** Real auctions have a mix of big national incumbents (Aramark, Sodexo, Chartwells) and smaller regional FSMCs with different cost distributions and qualities. Generalizing to J "types" of firm, each drawn from its own prior, is the natural next step after symmetric N.
+
+5. Reserve price currently set heuristically to 2·max(cH1, cH2); may want to expose it as a district-chosen slider.
 
 ## File Organization
 - `NJ Files/` — State-level NJ documents (forms, contract templates, statewide lists)
