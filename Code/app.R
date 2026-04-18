@@ -68,6 +68,12 @@ ui <- page_sidebar(
                  value = 5, min = 1, max = 20, step = 1),
     helpText("NJ Form 320A uses S = 5; adjust to explore sensitivity."),
 
+    # ── Reference-price cardinal ─────────────────────────────
+    sliderInput("p_ref", "Reference price  p_ref  (ref-price rule)",
+                min = 0.5, max = 12, value = 3.4, step = 0.05),
+    helpText("Ref-price cost score = S·(1 \u2212 (b \u2212 p_ref)/p_ref), floored at 0. ",
+             "Default = midpoint of the two firms' prior midpoints (auto-syncs)."),
+
     # ── Run welfare ──────────────────────────────────────────
     hr(),
     actionButton("run_welfare", "Compute welfare curves",
@@ -132,16 +138,27 @@ server <- function(input, output, session) {
       showNotification("Firm 2: cL must be strictly less than cH", type = "warning")
   })
 
-  # ── BNE at current w_disp — both rules (for bid function plot) ──────────────
+  # ── Auto-sync p_ref to the midpoint of the two priors' midpoints ─────────────
+  # Fires whenever the cost ranges change. Users can still override by dragging.
+  observeEvent(list(input$c1_range, input$c2_range), {
+    req(input$c1_range, input$c2_range)
+    mid1 <- mean(input$c1_range)
+    mid2 <- mean(input$c2_range)
+    p_ref_default <- round((mid1 + mid2) / 2, 2)
+    updateSliderInput(session, "p_ref", value = p_ref_default)
+  }, ignoreInit = FALSE)
+
+  # ── BNE at current w_disp — all three rules (for bid function plot) ─────────
   #
   # n_grid = 35, n_search = 120: ~3–6s per rule. bindCache prevents
   # recomputation when only lambda or run_welfare changes.
   bne_both <- reactive({
     req(
       input$c1_range[1] < input$c1_range[2],
-      input$c2_range[1] < input$c2_range[2]
+      input$c2_range[1] < input$c2_range[2],
+      input$p_ref > 0
     )
-    withProgress(message = "Solving BNE…", value = 0.3, {
+    withProgress(message = "Solving BNE…", value = 0.2, {
       ord <- solve_bne(
         input$q1, input$q2,
         input$c1_range[1], input$c1_range[2],
@@ -149,7 +166,7 @@ server <- function(input, output, session) {
         input$w_disp, input$S, rule = "ordinal",
         n_grid = 35, n_search = 120, max_iter = 50
       )
-      setProgress(0.65)
+      setProgress(0.5)
       car <- solve_bne(
         input$q1, input$q2,
         input$c1_range[1], input$c1_range[2],
@@ -157,20 +174,30 @@ server <- function(input, output, session) {
         input$w_disp, input$S, rule = "cardinal",
         n_grid = 35, n_search = 120, max_iter = 50
       )
+      setProgress(0.8)
+      car_ref <- solve_bne(
+        input$q1, input$q2,
+        input$c1_range[1], input$c1_range[2],
+        input$c2_range[1], input$c2_range[2],
+        input$w_disp, input$S, rule = "cardinal_ref",
+        n_grid = 35, n_search = 120, max_iter = 50,
+        p_ref = input$p_ref
+      )
       setProgress(1.0)
-      list(ordinal = ord, cardinal = car)
+      list(ordinal = ord, cardinal = car, cardinal_ref = car_ref)
     })
   }) |> bindCache(
     input$q1, input$q2,
     input$c1_range, input$c2_range,
-    input$w_disp, input$S
+    input$w_disp, input$S, input$p_ref
   )
 
   # ── Welfare curves (button-triggered, slower) ────────────────────────────────
   welfare_rv <- eventReactive(input$run_welfare, {
     req(
       input$c1_range[1] < input$c1_range[2],
-      input$c2_range[1] < input$c2_range[2]
+      input$c2_range[1] < input$c2_range[2],
+      input$p_ref > 0
     )
     withProgress(message = "Computing welfare curves…", value = 0.05, {
       setProgress(0.1, detail = "Ordinal rule (NJ)…")
@@ -181,7 +208,7 @@ server <- function(input, output, session) {
         input$lambda, input$S, rule = "ordinal",
         n_w = 13, n_grid = 28, n_search = 90
       )
-      setProgress(0.55, detail = "Cardinal rule (MI)…")
+      setProgress(0.4, detail = "Cardinal rule (MI)…")
       car <- welfare_over_w(
         input$q1, input$q2,
         input$c1_range[1], input$c1_range[2],
@@ -189,8 +216,17 @@ server <- function(input, output, session) {
         input$lambda, input$S, rule = "cardinal",
         n_w = 13, n_grid = 28, n_search = 90
       )
+      setProgress(0.7, detail = "Reference-price cardinal…")
+      car_ref <- welfare_over_w(
+        input$q1, input$q2,
+        input$c1_range[1], input$c1_range[2],
+        input$c2_range[1], input$c2_range[2],
+        input$lambda, input$S, rule = "cardinal_ref",
+        n_w = 13, n_grid = 28, n_search = 90,
+        p_ref = input$p_ref
+      )
       setProgress(1.0)
-      rbind(ord, car)
+      rbind(ord, car, car_ref)
     })
   })
 
@@ -198,15 +234,30 @@ server <- function(input, output, session) {
   output$plot_bids <- renderPlot({
     bne <- bne_both()
 
+    ref_lbl <- sprintf("Cardinal ref-price (p_ref = %.2f)", input$p_ref)
+
     df <- rbind(
       data.frame(firm = "Firm 1", rule = "Ordinal (NJ)",
                  cost = bne$ordinal$c1,  bid = bne$ordinal$b1),
       data.frame(firm = "Firm 1", rule = "Cardinal (MI)",
                  cost = bne$cardinal$c1, bid = bne$cardinal$b1),
+      data.frame(firm = "Firm 1", rule = ref_lbl,
+                 cost = bne$cardinal_ref$c1, bid = bne$cardinal_ref$b1),
       data.frame(firm = "Firm 2", rule = "Ordinal (NJ)",
                  cost = bne$ordinal$c2,  bid = bne$ordinal$b2),
       data.frame(firm = "Firm 2", rule = "Cardinal (MI)",
-                 cost = bne$cardinal$c2, bid = bne$cardinal$b2)
+                 cost = bne$cardinal$c2, bid = bne$cardinal$b2),
+      data.frame(firm = "Firm 2", rule = ref_lbl,
+                 cost = bne$cardinal_ref$c2, bid = bne$cardinal_ref$b2)
+    )
+
+    # Lock rule ordering so legend and palette are consistent across plots
+    df$rule <- factor(df$rule,
+                      levels = c("Ordinal (NJ)", "Cardinal (MI)", ref_lbl))
+
+    rule_colors <- setNames(
+      c("#8C1515", "#0098DB", "#B26F16"),
+      c("Ordinal (NJ)", "Cardinal (MI)", ref_lbl)
     )
 
     # Axis starts at 0 so the bid = cost reference line is a true 45-degree diagonal
@@ -215,13 +266,12 @@ server <- function(input, output, session) {
     ggplot(df, aes(x = cost, y = bid, color = rule)) +
       geom_abline(slope = 1, intercept = 0,
                   color = "grey65", linetype = "dashed", linewidth = 0.7) +
+      geom_vline(xintercept = input$p_ref,
+                 color = "#B26F16", linetype = "dotted", linewidth = 0.7, alpha = 0.6) +
       geom_line(linewidth = 1.3) +
       facet_wrap(~ firm) +
       coord_cartesian(xlim = c(0, xy_max), ylim = c(0, xy_max)) +
-      scale_color_manual(
-        values = c("Ordinal (NJ)"  = "#8C1515",
-                   "Cardinal (MI)" = "#0098DB")
-      ) +
+      scale_color_manual(values = rule_colors) +
       labs(
         title   = sprintf("Equilibrium bid functions    w = %.2f  |  q\u2081 = %.2f  q\u2082 = %.2f",
                            input$w_disp, input$q1, input$q2),
@@ -229,9 +279,8 @@ server <- function(input, output, session) {
         y       = "Equilibrium bid  \u03b2*(c)",
         color   = "Scoring rule",
         caption = paste(
-          "Dashed line: bid = cost (zero markup).",
-          "Bids above this line reflect equilibrium markup — profit = bid \u2212 cost.",
-          "Firms shade bids above their private cost to earn positive expected profit."
+          "Dashed grey line: bid = cost (zero markup); bids above are equilibrium markups.",
+          "Orange dotted line: reference price p_ref (bids at p_ref score S under the ref-price rule)."
         )
       ) +
       theme_minimal(base_size = 14) +
@@ -251,10 +300,16 @@ server <- function(input, output, session) {
       slice(1) |>
       ungroup()
 
-    rule_labels <- c("ordinal"  = "Ordinal (NJ)",
-                     "cardinal" = "Cardinal (MI)")
-    rule_colors <- c("ordinal"  = "#8C1515",
-                     "cardinal" = "#0098DB")
+    rule_labels <- c(
+      "ordinal"      = "Ordinal (NJ)",
+      "cardinal"     = "Cardinal (MI)",
+      "cardinal_ref" = sprintf("Cardinal ref-price (p_ref = %.2f)", input$p_ref)
+    )
+    rule_colors <- c(
+      "ordinal"      = "#8C1515",
+      "cardinal"     = "#0098DB",
+      "cardinal_ref" = "#B26F16"
+    )
 
     ggplot(df, aes(x = w, y = welfare, color = rule)) +
       geom_line(linewidth = 1.3) +
@@ -297,11 +352,16 @@ server <- function(input, output, session) {
       slice(1) |>
       ungroup()
 
-    w_ord  <- round(filter(optima, rule == "ordinal")$w,       3)
-    w_car  <- round(filter(optima, rule == "cardinal")$w,      3)
-    eu_ord <- round(filter(optima, rule == "ordinal")$welfare,  4)
-    eu_car <- round(filter(optima, rule == "cardinal")$welfare, 4)
-    loss   <- round(eu_car - eu_ord, 4)
+    w_ord      <- round(filter(optima, rule == "ordinal")$w,           3)
+    w_car      <- round(filter(optima, rule == "cardinal")$w,          3)
+    w_ref      <- round(filter(optima, rule == "cardinal_ref")$w,      3)
+    eu_ord     <- round(filter(optima, rule == "ordinal")$welfare,     4)
+    eu_car     <- round(filter(optima, rule == "cardinal")$welfare,    4)
+    eu_ref     <- round(filter(optima, rule == "cardinal_ref")$welfare, 4)
+    best_eu    <- max(eu_ord, eu_car, eu_ref)
+    loss_ord   <- round(best_eu - eu_ord, 4)
+    loss_car   <- round(best_eu - eu_car, 4)
+    loss_ref   <- round(best_eu - eu_ref, 4)
 
     # Interpretation message
     w_dev  <- abs(w_ord - input$lambda)
@@ -309,29 +369,20 @@ server <- function(input, output, session) {
       sprintf(
         "Ordinal scoring forces the district to set w* = %.2f to compensate for
         rank-based distortion, a gap of %.2f from its true preference \u03bb = %.2f.
-        Under cardinal scoring the district can set w* = %.2f, which
-        is much closer to \u03bb. The welfare loss from being constrained to
-        ordinal scoring is %.4f utility units.",
-        w_ord, w_dev, input$lambda, w_car, loss
+        Standard cardinal gives w* = %.2f; reference-price cardinal (p_ref = %.2f)
+        gives w* = %.2f. The welfare gap between ordinal and the best-performing
+        rule is %.4f utility units.",
+        w_ord, w_dev, input$lambda, w_car, input$p_ref, w_ref, loss_ord
       )
     } else {
       sprintf(
-        "Under these parameters the two rules produce similar optimal weights
-        (ordinal w* = %.2f, cardinal w* = %.2f). Try widening the spread
-        between the two firms' cost distributions, or increasing the quality gap,
-        to amplify the distortion from ordinal scoring.",
-        w_ord, w_car
+        "Under these parameters the three rules produce similar optimal weights
+        (ordinal w* = %.2f, cardinal w* = %.2f, ref-price w* = %.2f at p_ref = %.2f).
+        Try widening the spread between the two firms' cost distributions, or
+        increasing the quality gap, to amplify the distortion from ordinal scoring.",
+        w_ord, w_car, w_ref, input$p_ref
       )
     }
-
-    tbl <- data.frame(
-      Rule            = c("Ordinal (NJ)", "Cardinal (MI)",
-                           "Welfare loss  (cardinal \u2212 ordinal)"),
-      `Optimal w*`    = c(w_ord, w_car, NA),
-      `Max E[U]`      = c(eu_ord, eu_car, loss),
-      check.names     = FALSE,
-      stringsAsFactors = FALSE
-    )
 
     tagList(
       div(class = "m-3",
@@ -353,18 +404,25 @@ server <- function(input, output, session) {
       slice(1) |>
       ungroup()
 
-    w_ord  <- round(filter(optima, rule == "ordinal")$w,      3)
-    w_car  <- round(filter(optima, rule == "cardinal")$w,     3)
-    eu_ord <- round(filter(optima, rule == "ordinal")$welfare, 4)
-    eu_car <- round(filter(optima, rule == "cardinal")$welfare, 4)
-    loss   <- round(eu_car - eu_ord, 4)
+    w_ord  <- round(filter(optima, rule == "ordinal")$w,           3)
+    w_car  <- round(filter(optima, rule == "cardinal")$w,          3)
+    w_ref  <- round(filter(optima, rule == "cardinal_ref")$w,      3)
+    eu_ord <- round(filter(optima, rule == "ordinal")$welfare,     4)
+    eu_car <- round(filter(optima, rule == "cardinal")$welfare,    4)
+    eu_ref <- round(filter(optima, rule == "cardinal_ref")$welfare, 4)
+    best_eu <- max(eu_ord, eu_car, eu_ref)
+    gap_ord <- round(best_eu - eu_ord, 4)
+    gap_car <- round(best_eu - eu_car, 4)
+    gap_ref <- round(best_eu - eu_ref, 4)
 
     data.frame(
-      Rule         = c("Ordinal (NJ)", "Cardinal (MI)",
-                        "Welfare loss  (cardinal \u2212 ordinal)"),
-      `Optimal w*` = c(w_ord, w_car, NA),
-      `Max E[U]`   = c(eu_ord, eu_car, loss),
-      check.names  = FALSE
+      Rule          = c("Ordinal (NJ)",
+                         "Cardinal (MI)",
+                         sprintf("Cardinal ref-price (p_ref = %.2f)", input$p_ref)),
+      `Optimal w*`  = c(w_ord,  w_car,  w_ref),
+      `Max E[U]`    = c(eu_ord, eu_car, eu_ref),
+      `Gap to best` = c(gap_ord, gap_car, gap_ref),
+      check.names   = FALSE
     )
   }, na = "\u2014", striped = TRUE, hover = TRUE, bordered = TRUE, width = "100%")
 

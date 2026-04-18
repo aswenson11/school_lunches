@@ -12,8 +12,10 @@
 #   - Winning firm earns profit b_i - c_i
 #
 # Scoring rules:
-#   Ordinal (NJ):   cost_score_i = S if rank 1, S-1 if rank 2, etc.
-#   Cardinal (MI):  cost_score_i = max(0, (1 - (b_i - b_min)/b_min) * S)
+#   Ordinal (NJ):       cost_score_i = S if rank 1, S-1 if rank 2, etc.
+#   Cardinal (MI):      cost_score_i = max(0, (1 - (b_i - b_min)/b_min) * S)
+#   Cardinal ref-price: cost_score_i = max(0, (1 - (b_i - p_ref)/p_ref) * S)
+#     (p_ref = exogenous reference price announced ex ante by the district)
 #
 # Total score: w * cost_score_i + (1 - w) * q_i
 #
@@ -28,20 +30,29 @@
 #' @param q1,q2   scalar quality types on [0, S]
 #' @param w       district's scoring weight on cost in [0, 1]
 #' @param S       max cost score points (default 5, matching NJ Form 320A)
-#' @param rule    "ordinal" or "cardinal"
+#' @param rule    "ordinal", "cardinal", or "cardinal_ref"
+#' @param p_ref   exogenous reference price (required for "cardinal_ref")
 #' @return list(winner = 1|2, price = winning bid, quality = winner quality)
-auction_outcome <- function(b1, b2, q1, q2, w, S = 5, rule) {
+auction_outcome <- function(b1, b2, q1, q2, w, S = 5, rule, p_ref = NULL) {
   if (rule == "ordinal") {
     # Lowest bid gets S points; 2nd lowest gets S-1 points
     # Ties broken in favor of firm 1 (prob-0 event with continuous types)
     cs1 <- if (b1 <= b2) S else S - 1L
     cs2 <- if (b2 <  b1) S else S - 1L
-  } else {
+  } else if (rule == "cardinal") {
     # Cardinal: lowest bid gets S; others scaled by proportional overage
     # Formula: (1 - (b_i - b_min)/b_min) * S, floored at 0
     bmin <- min(b1, b2)
     cs1  <- max(0, (1 - (b1 - bmin) / bmin) * S)
     cs2  <- max(0, (1 - (b2 - bmin) / bmin) * S)
+  } else if (rule == "cardinal_ref") {
+    # Reference-price cardinal: score is linear in bid, anchored to p_ref
+    # cs = S at b = p_ref; 0 at b = 2·p_ref; exceeds S for b < p_ref
+    stopifnot(!is.null(p_ref), p_ref > 0)
+    cs1 <- max(0, (1 - (b1 - p_ref) / p_ref) * S)
+    cs2 <- max(0, (1 - (b2 - p_ref) / p_ref) * S)
+  } else {
+    stop("unknown rule: ", rule)
   }
   ts1 <- w * cs1 + (1 - w) * q1
   ts2 <- w * cs2 + (1 - w) * q2
@@ -65,8 +76,9 @@ auction_outcome <- function(b1, b2, q1, q2, w, S = 5, rule) {
 #' @param q1,q2  quality types
 #' @param beta2  competitor's bid function evaluated on its cost grid (vector)
 #' @param w,S    scoring parameters
-#' @param rule   "ordinal" or "cardinal"
-win_prob_1 <- function(b, q1, q2, beta2, w, S = 5, rule) {
+#' @param rule   "ordinal", "cardinal", or "cardinal_ref"
+#' @param p_ref  exogenous reference price (required for "cardinal_ref")
+win_prob_1 <- function(b, q1, q2, beta2, w, S = 5, rule, p_ref = NULL) {
   if (rule == "ordinal") {
     # A1: firm 1 wins if it gets cost rank 1 (b < bj); >= matches auction_outcome tie-break
     A1 <- (w * S       + (1 - w) * q1) >= (w * (S - 1) + (1 - w) * q2)
@@ -74,7 +86,7 @@ win_prob_1 <- function(b, q1, q2, beta2, w, S = 5, rule) {
     A2 <- (w * (S - 1) + (1 - w) * q1) >= (w * S       + (1 - w) * q2)
     mean((b < beta2) * A1 + (b > beta2) * A2)
 
-  } else {
+  } else if (rule == "cardinal") {
     # Cardinal: win condition depends on actual bid magnitudes
     bmin <- pmin(b, beta2)           # element-wise min (b is scalar, beta2 vector)
     cs1  <- pmax(0, (1 - (b      - bmin) / bmin) * S)
@@ -82,12 +94,24 @@ win_prob_1 <- function(b, q1, q2, beta2, w, S = 5, rule) {
     ts1  <- w * cs1 + (1 - w) * q1
     ts2  <- w * cs2 + (1 - w) * q2
     mean(ts1 >= ts2)
+
+  } else if (rule == "cardinal_ref") {
+    # Reference-price cardinal: score is linear in b_i; no dependence on competitor's bid
+    stopifnot(!is.null(p_ref), p_ref > 0)
+    cs1 <- pmax(0, (1 - (b     - p_ref) / p_ref) * S)
+    cs2 <- pmax(0, (1 - (beta2 - p_ref) / p_ref) * S)
+    ts1 <- w * cs1 + (1 - w) * q1
+    ts2 <- w * cs2 + (1 - w) * q2
+    mean(ts1 >= ts2)
+
+  } else {
+    stop("unknown rule: ", rule)
   }
 }
 
 # Symmetric version for firm 2
-win_prob_2 <- function(b, q2, q1, beta1, w, S = 5, rule) {
-  win_prob_1(b, q2, q1, beta1, w, S, rule)
+win_prob_2 <- function(b, q2, q1, beta1, w, S = 5, rule, p_ref = NULL) {
+  win_prob_1(b, q2, q1, beta1, w, S, rule, p_ref)
 }
 
 
@@ -98,20 +122,20 @@ win_prob_2 <- function(b, q2, q1, beta1, w, S = 5, rule) {
 #' Grid search over [c1, b_max]. Increasing n_search improves accuracy.
 #'
 #' @return scalar optimal bid
-br1 <- function(c1, q1, q2, beta2, w, S, rule, b_max, n_search = 150) {
+br1 <- function(c1, q1, q2, beta2, w, S, rule, b_max, n_search = 150, p_ref = NULL) {
   bs <- seq(c1, b_max, length.out = n_search)
   pi <- (bs - c1) * vapply(bs, win_prob_1, numeric(1),
                             q1 = q1, q2 = q2, beta2 = beta2,
-                            w = w, S = S, rule = rule)
+                            w = w, S = S, rule = rule, p_ref = p_ref)
   bs[which.max(pi)]
 }
 
 #' Firm 2's profit-maximizing bid at cost c2
-br2 <- function(c2, q2, q1, beta1, w, S, rule, b_max, n_search = 150) {
+br2 <- function(c2, q2, q1, beta1, w, S, rule, b_max, n_search = 150, p_ref = NULL) {
   bs <- seq(c2, b_max, length.out = n_search)
   pi <- (bs - c2) * vapply(bs, win_prob_2, numeric(1),
                             q2 = q2, q1 = q1, beta1 = beta1,
-                            w = w, S = S, rule = rule)
+                            w = w, S = S, rule = rule, p_ref = p_ref)
   bs[which.max(pi)]
 }
 
@@ -135,15 +159,18 @@ br2 <- function(c2, q2, q1, beta1, w, S, rule, b_max, n_search = 150) {
 #' @param max_iter      max iterations
 #' @param tol           convergence tolerance (sup-norm on bid function change)
 #' @param reserve_price district's max willingness to pay (caps monopoly bids)
+#' @param p_ref         exogenous reference price (required for "cardinal_ref")
 #' @return list(c1, b1, c2, b2, converged, iters, regime)
 solve_bne <- function(q1, q2, cL1, cH1, cL2, cH2, w, S = 5, rule,
                        n_grid     = 40,
                        n_search   = 150,
                        max_iter   = 60,
                        tol        = 1e-3,
-                       reserve_price = NULL) {
+                       reserve_price = NULL,
+                       p_ref = NULL) {
 
   stopifnot(cL1 < cH1, cL2 < cH2, w >= 0, w <= 1, S > 0)
+  if (rule == "cardinal_ref") stopifnot(!is.null(p_ref), p_ref > 0)
 
   c1    <- seq(cL1, cH1, length.out = n_grid)
   c2    <- seq(cL2, cH2, length.out = n_grid)
@@ -184,11 +211,13 @@ solve_bne <- function(q1, q2, cL1, cH1, cL2, cH2, w, S = 5, rule,
 
     b1 <- vapply(c1, br1, numeric(1),
                   q1 = q1, q2 = q2, beta2 = b2,
-                  w = w, S = S, rule = rule, b_max = b_max, n_search = n_search)
+                  w = w, S = S, rule = rule, b_max = b_max,
+                  n_search = n_search, p_ref = p_ref)
 
     b2 <- vapply(c2, br2, numeric(1),
                   q2 = q2, q1 = q1, beta1 = b1,
-                  w = w, S = S, rule = rule, b_max = b_max, n_search = n_search)
+                  w = w, S = S, rule = rule, b_max = b_max,
+                  n_search = n_search, p_ref = p_ref)
 
     delta <- max(max(abs(b1 - b1_old)), max(abs(b2 - b2_old)))
     if (delta < tol) break
@@ -212,9 +241,10 @@ solve_bne <- function(q1, q2, cL1, cH1, cL2, cH2, w, S = 5, rule,
 #'
 #' @param bne    output of solve_bne()
 #' @param lambda district's true weight on cost (higher = cares more about price)
-compute_welfare <- function(bne, q1, q2, lambda, w, S = 5, rule) {
+#' @param p_ref  exogenous reference price (required for "cardinal_ref")
+compute_welfare <- function(bne, q1, q2, lambda, w, S = 5, rule, p_ref = NULL) {
   utils <- outer(seq_along(bne$c1), seq_along(bne$c2), Vectorize(function(i, j) {
-    out <- auction_outcome(bne$b1[i], bne$b2[j], q1, q2, w, S, rule)
+    out <- auction_outcome(bne$b1[i], bne$b2[j], q1, q2, w, S, rule, p_ref)
     (1 - lambda) * out$quality - lambda * out$price
   }))
   mean(utils)
@@ -230,14 +260,14 @@ compute_welfare <- function(bne, q1, q2, lambda, w, S = 5, rule) {
 #' @param n_search  best-response bid search resolution
 #' @return tibble with columns: w, welfare, rule
 welfare_over_w <- function(q1, q2, cL1, cH1, cL2, cH2, lambda, S = 5, rule,
-                            n_w = 15, n_grid = 30, n_search = 100) {
+                            n_w = 15, n_grid = 30, n_search = 100, p_ref = NULL) {
   w_seq <- seq(0.05, 0.95, length.out = n_w)
 
   welf <- vapply(w_seq, function(w) {
     bne <- solve_bne(q1, q2, cL1, cH1, cL2, cH2, w, S, rule,
                      n_grid = n_grid, n_search = n_search,
-                     max_iter = 50, tol = 1e-3)
-    compute_welfare(bne, q1, q2, lambda, w, S, rule)
+                     max_iter = 50, tol = 1e-3, p_ref = p_ref)
+    compute_welfare(bne, q1, q2, lambda, w, S, rule, p_ref)
   }, numeric(1))
 
   data.frame(w = w_seq, welfare = welf, rule = rule,
