@@ -86,9 +86,11 @@ ui <- page_sidebar(
       plotOutput("plot_bids", height = "460px"),
       card_footer(
         tags$em(
-          "Equilibrium bid functions β*(c) for both scoring rules at the current w.",
-          " Dashed line = bid at cost (zero markup).",
-          " Points above the dashed line represent the markup each firm extracts in equilibrium."
+          "Equilibrium bid functions \u03b2*(c) for both scoring rules at the current w,",
+          " shown separately for each firm.",
+          " Dashed line = bid equals cost (zero markup).",
+          " Bids above the dashed line are equilibrium markups — firms shade their bids above",
+          " private cost to earn positive expected profit, exactly as in standard procurement auctions."
         )
       )
     ),
@@ -207,16 +209,18 @@ server <- function(input, output, session) {
                  cost = bne$cardinal$c2, bid = bne$cardinal$b2)
     )
 
-    ggplot(df, aes(x = cost, y = bid, color = rule, linetype = firm)) +
+    # Axis starts at 0 so the bid = cost reference line is a true 45-degree diagonal
+    xy_max <- max(df$bid, df$cost) * 1.05
+
+    ggplot(df, aes(x = cost, y = bid, color = rule)) +
       geom_abline(slope = 1, intercept = 0,
                   color = "grey65", linetype = "dashed", linewidth = 0.7) +
       geom_line(linewidth = 1.3) +
+      facet_wrap(~ firm) +
+      coord_cartesian(xlim = c(0, xy_max), ylim = c(0, xy_max)) +
       scale_color_manual(
         values = c("Ordinal (NJ)"  = "#8C1515",
                    "Cardinal (MI)" = "#0098DB")
-      ) +
-      scale_linetype_manual(
-        values = c("Firm 1" = "solid", "Firm 2" = "longdash")
       ) +
       labs(
         title   = sprintf("Equilibrium bid functions    w = %.2f  |  q\u2081 = %.2f  q\u2082 = %.2f",
@@ -224,11 +228,16 @@ server <- function(input, output, session) {
         x       = "True cost  c",
         y       = "Equilibrium bid  \u03b2*(c)",
         color   = "Scoring rule",
-        linetype = "Firm"
+        caption = paste(
+          "Dashed line: bid = cost (zero markup).",
+          "Bids above this line reflect equilibrium markup — profit = bid \u2212 cost.",
+          "Firms shade bids above their private cost to earn positive expected profit."
+        )
       ) +
       theme_minimal(base_size = 14) +
       theme(legend.position = "bottom",
-            plot.title = element_text(size = 13))
+            plot.title   = element_text(size = 13),
+            plot.caption = element_text(size = 10, color = "grey45", hjust = 0))
   })
 
   # ── Plot: welfare curves ─────────────────────────────────────────────────────

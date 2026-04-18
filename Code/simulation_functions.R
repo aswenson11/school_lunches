@@ -68,10 +68,10 @@ auction_outcome <- function(b1, b2, q1, q2, w, S = 5, rule) {
 #' @param rule   "ordinal" or "cardinal"
 win_prob_1 <- function(b, q1, q2, beta2, w, S = 5, rule) {
   if (rule == "ordinal") {
-    # A1: firm 1 wins if it gets cost rank 1 (b < bj)
-    A1 <- (w * S       + (1 - w) * q1) > (w * (S - 1) + (1 - w) * q2)
+    # A1: firm 1 wins if it gets cost rank 1 (b < bj); >= matches auction_outcome tie-break
+    A1 <- (w * S       + (1 - w) * q1) >= (w * (S - 1) + (1 - w) * q2)
     # A2: firm 1 wins even with cost rank 2 (b > bj) — requires large quality gap
-    A2 <- (w * (S - 1) + (1 - w) * q1) > (w * S       + (1 - w) * q2)
+    A2 <- (w * (S - 1) + (1 - w) * q1) >= (w * S       + (1 - w) * q2)
     mean((b < beta2) * A1 + (b > beta2) * A2)
 
   } else {
@@ -151,8 +151,8 @@ solve_bne <- function(q1, q2, cL1, cH1, cL2, cH2, w, S = 5, rule,
 
   # ── Ordinal shortcut: check whether competition is trivial ──────────────────
   if (rule == "ordinal") {
-    A1 <- (w * S       + (1 - w) * q1) > (w * (S - 1) + (1 - w) * q2)
-    A2 <- (w * (S - 1) + (1 - w) * q1) > (w * S       + (1 - w) * q2)
+    A1 <- (w * S       + (1 - w) * q1) >= (w * (S - 1) + (1 - w) * q2)
+    A2 <- (w * (S - 1) + (1 - w) * q1) >= (w * S       + (1 - w) * q2)
 
     if (!A1 && !A2) {
       # Firm 1 can never win: firm 2 wins regardless of bids.
