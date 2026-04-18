@@ -1,0 +1,7 @@
+.DS_Store
+~$*
+.~lock.*
+*.lock
+Code/school_lunch_prez_1_files/
+Code/*.html
+Code/*.pdf

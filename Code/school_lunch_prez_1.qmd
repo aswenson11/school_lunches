@@ -1,0 +1,428 @@
+---
+title: "Competition, Scoring, and Health Outcomes in School Food Procurement"
+subtitle: "Evidence from FSMC Procurement Auctions"
+author: "Andrew Swenson"
+institute: "Stanford Health Policy"
+date: today
+format:
+  beamer:
+    theme: Madrid
+    colortheme: default
+    fonttheme: default
+    aspectratio: 169
+    navigation: horizontal
+    section-titles: true
+    keep-tex: false
+    include-in-header:
+      text: |
+        % ── Stanford color palette ──────────────────────────────────────────────
+        \definecolor{StanfordCardinal}{RGB}{140,21,21}
+        \definecolor{StanfordDark}{RGB}{98,15,15}
+        \definecolor{StanfordCool}{RGB}{0,152,219}
+        \definecolor{StanfordWarm}{RGB}{178,111,22}
+        \definecolor{StanfordStone}{RGB}{116,116,116}
+        \definecolor{StanfordLight}{RGB}{245,235,220}
+        \definecolor{StanfordWhite}{RGB}{255,255,255}
+
+        % ── Apply Stanford palette to Beamer theme ───────────────────────────────
+        \setbeamercolor{palette primary}{bg=StanfordCardinal, fg=white}
+        \setbeamercolor{palette secondary}{bg=StanfordDark, fg=white}
+        \setbeamercolor{palette tertiary}{bg=StanfordCardinal, fg=white}
+        \setbeamercolor{palette quaternary}{bg=StanfordDark, fg=white}
+        \setbeamercolor{structure}{fg=StanfordCardinal}
+        \setbeamercolor{section in toc}{fg=StanfordCardinal}
+        \setbeamercolor{subsection in toc}{fg=StanfordDark}
+        \setbeamercolor{frametitle}{bg=StanfordCardinal, fg=white}
+        \setbeamercolor{title}{bg=StanfordCardinal, fg=white}
+        \setbeamercolor{subtitle}{fg=StanfordLight}
+        \setbeamercolor{author in head/foot}{bg=StanfordDark, fg=white}
+        \setbeamercolor{title in head/foot}{bg=StanfordCardinal, fg=white}
+        \setbeamercolor{date in head/foot}{bg=StanfordDark, fg=white}
+        \setbeamercolor{block title}{bg=StanfordCardinal, fg=white}
+        \setbeamercolor{block body}{bg=StanfordLight, fg=black}
+        \setbeamercolor{block title alerted}{bg=StanfordWarm, fg=white}
+        \setbeamercolor{block body alerted}{bg=StanfordLight, fg=black}
+        \setbeamercolor{block title example}{bg=StanfordCool, fg=white}
+        \setbeamercolor{block body example}{bg=StanfordLight, fg=black}
+        \setbeamercolor{item}{fg=StanfordCardinal}
+        \setbeamercolor{subitem}{fg=StanfordDark}
+        \setbeamercolor{subsubitem}{fg=StanfordStone}
+
+        % ── Fonts ────────────────────────────────────────────────────────────────
+        \usefonttheme{serif}
+        \setbeamerfont{title}{size=\Large, series=\bfseries}
+        \setbeamerfont{subtitle}{size=\normalsize}
+        \setbeamerfont{frametitle}{size=\large, series=\bfseries}
+        \setbeamerfont{block title}{size=\normalsize, series=\bfseries}
+
+        % ── Section slide style ──────────────────────────────────────────────────
+        \AtBeginSection[]{
+          \begin{frame}
+            \vfill
+            \centering
+            \begin{beamercolorbox}[sep=16pt,center,rounded=true,shadow=true]{title}
+              \usebeamerfont{title}\insertsectionhead\par
+            \end{beamercolorbox}
+            \vfill
+          \end{frame}
+        }
+        \setbeamertemplate{footline}{
+          \leavevmode
+          \hbox{
+            \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,center]{author in head/foot}
+              \usebeamerfont{author in head/foot}\insertshortauthor
+            \end{beamercolorbox}
+            \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,center]{title in head/foot}
+              \usebeamerfont{title in head/foot}\insertsectionhead
+            \end{beamercolorbox}
+            \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,center]{date in head/foot}
+              \usebeamerfont{date in head/foot}\insertframenumber{} / \inserttotalframenumber\hspace*{2ex}
+            \end{beamercolorbox}
+          }
+          \vskip0pt
+              }
+        
+---
+
+# Background
+
+## Motivation
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+
+**The school meal policy landscape**
+
+- Over **30 million** children eat school lunch daily (USDA FNS)
+- Healthy, Hunger-Free Kids Act (2010) set stricter nutrition standards
+- 2014: Full implementation; 2018: USDA rollbacks on whole grains, sodium
+- Many districts outsource food service to **Food Service Management Companies (FSMCs)**
+
+\end{column}
+\begin{column}{0.42\textwidth}
+
+\begin{block}{Research Questions}
+\begin{enumerate}
+  \item How does scoring formula design affect competition and pricing?
+  \item How do these designs impact nutritional quality? 
+  \item What are the downstream health effects?
+\end{enumerate}
+\end{block}
+
+\end{column}
+\end{columns}
+
+## Institutional Context: The FSMC Market
+
+**What are FSMCs?**
+
+- Private contractors who manage school cafeterias on behalf of School Food Authorities (SFAs)
+- Responsible for procurement, staffing, menu planning, and compliance
+- A handful of large national firms (Aramark, Sodexo, Chartwells) dominate
+
+\vspace{0.5em}
+
+**Procurement process**
+
+- SFAs issue Requests for Proposal (RFPs) with a **scoring formula** weighting cost vs. quality
+- State agencies oversee compliance with federal nutrition standards via Administrative Reviews, and also enforce their own rules (more on this later)
+- Contracts renewed on multi-year cycles, creating periodic competitive bidding episodes
+
+## Data Sources
+
+| Source | Content | Coverage |
+|---|---|---|
+| Michigan MDE contract lists | SFA–FSMC pairings | SY 2019–2026 |
+| State FOIA requests | Bid tabs, scores, AR findings | SY 2013– |
+| NCES Common Core of Data | District enrollment, demographics | Annual |
+| USDA FNS | SBP/NSLP participation | Annual |
+| CEP rollout records | Community Eligibility Provision adoption | 2014– |
+
+\begin{alertblock}{Primary States}
+Michigan and New Jersey — greatest volume of FSMC procurement auctions over time
+\end{alertblock}
+
+# Scoring Weirdness and Competitive Impacts
+## Slide on Cost reimbursable vs other auctions
+
+- Write still
+
+## Typical Scoring Categories 
+
+**A typical RFP scores bids on multiple dimensions, including:**
+\begin{itemize}
+  \item Total cost (almost always has the highest weight) 
+  \item Guaranteed Return (FILL IN, NEED TO UNDERSTAND )
+  \item Food Quality/Specifications 
+  \item Menu variety 
+  \item Corporate capability and experience
+\end{itemize}
+
+## How Scoring Formulas Work
+
+**For simplicity here we focus just on quality and cost:**
+
+$$\text{Total Score} = w_{\text{cost}} \cdot S_{\text{cost}} + w_{\text{quality}} \cdot S_{\text{quality}}$$
+
+\vspace{0.3em}
+
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+
+\textcolor{StanfordCardinal}{\textbf{Cost component}}
+\begin{itemize}
+  \item The lowest cost bidder usually gets the maximum allowable points (e.g 5 (NJ))
+  \item How other bidders are scored can either be ordinal (2nd lowest cost bidder gets 4 points) (NJ) or cardinal (2nd lowest cost bidder gets $(1 -\frac{\text{Cost} - \text{Lowest Cost}}{\text{Lowest Cost}})*5$ points) (MI)
+\end{itemize}
+
+\end{column}
+\begin{column}{0.48\textwidth}
+
+\textcolor{StanfordCool}{\textbf{Quality component}}
+\begin{itemize}
+  \item Subjective: menu plans, staffing ratios, experience
+  \item Evaluated by a panel — open to discretion
+\end{itemize}
+
+\end{column}
+\end{columns}
+
+## Scoring Weirdness: Key Anomalies
+
+**Empirical patterns from bid tabulation data:**
+
+\vspace{0.4em}
+
+1. **Bunching near thresholds** — bids cluster just below price breakpoints in the scoring formula, consistent with strategic gaming
+
+2. **Low entry rates** — many auctions attract only 1–2 bidders, raising questions about effective competition
+
+3. **Quality score dispersion** — identical firms receive widely different quality scores across districts in the same year
+
+4. **Incumbent advantage** — incumbents win at significantly higher rates than predicted by scores alone
+
+\begin{block}{Identification Strategy}
+Exploit variation in cost-vs.-quality weight \emph{across districts and over time} as quasi-experimental variation in competitive conditions
+\end{block}
+
+## Competitive Impacts: Preliminary Framework
+
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+
+\textbf{Outcomes of interest}
+\begin{itemize}
+  \item Meal price per student
+  \item Number of qualified bidders
+  \item Incumbent retention rate
+  \item Contract duration and renewal terms
+\end{itemize}
+
+\end{column}
+\begin{column}{0.48\textwidth}
+
+\textbf{Key threats to identification}
+\begin{itemize}
+  \item Formula weights are chosen by districts — potentially endogenous
+  \item Larger or richer districts may select differently
+  \item Market-level shocks (e.g., COVID supply disruptions)
+\end{itemize}
+
+\end{column}
+\end{columns}
+
+\vspace{0.5em}
+
+\begin{exampleblock}{Proposed Design}
+Difference-in-differences using staggered formula weight changes, with district fixed effects and time trends
+\end{exampleblock}
+
+# Impact of Nutritional Quality
+
+## Measuring Nutritional Compliance
+
+**Administrative Review (AR) process**
+
+- Michigan MDE conducts on-site ARs of each SFA on a multi-year cycle
+- Findings document violations: caloric limits, sodium thresholds, whole grain requirements, fruit/vegetable offerings
+- FOIA to Michigan MDE targets AR findings since SY 2013–14
+
+\vspace{0.4em}
+
+**Nutrition quality measures**
+
+| Measure | Source | Notes |
+|---|---|---|
+| AR violation rates | State FOIA | Direct compliance measure |
+| Healthy Eating Index (HEI) | NHANES dietary recall | Population-level |
+| Menu nutrient content | FSMC contract records | Where available |
+
+## FSMC vs. Self-Operated: Nutritional Tradeoffs
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+
+\textbf{Theoretical channels}
+
+\begin{itemize}
+  \item FSMCs have \textbf{scale economies} in procurement — may access higher-quality ingredients at lower cost
+  \item Profit motive may push toward \textbf{cost-cutting} on quality where compliance is difficult to monitor
+  \item National firms have \textbf{standardized menus} — less local adaptation, but consistent compliance infrastructure
+\end{itemize}
+
+\end{column}
+\begin{column}{0.42\textwidth}
+
+\begin{alertblock}{Adrienne's Question}
+Do school lunches meaningfully affect \textbf{short-run obesity outcomes}?
+
+\vspace{0.3em}
+\small Framing: limitation on statistical power, or a design feature requiring longer follow-up windows?
+\end{alertblock}
+
+\end{column}
+\end{columns}
+
+## HHFKA Policy Arc and Nutritional Standards
+
+**Key regulatory milestones affecting nutritional compliance:**
+
+\vspace{0.3em}
+
+- **2010:** Healthy, Hunger-Free Kids Act signed — mandates new nutrition standards
+- **2012:** Interim final rule published; schools begin transition
+- **2014:** Full implementation — stricter caloric limits, whole grain-rich requirements, sodium targets
+- **2018:** USDA rollbacks — relaxed whole grain and sodium timelines, reintroduced flavored milk
+
+\vspace{0.3em}
+
+\begin{block}{Research Finding from Literature}
+HHFKA improved Healthy Eating Index scores among low-income students; 2018 rollbacks raised concerns about erosion of those gains (Schwartz et al.; Cohen et al.)
+\end{block}
+
+# Health Outcomes
+
+## Linking Procurement to Health: Causal Chain
+
+\vspace{0.2em}
+
+$$\underbrace{\text{Scoring Formula}}_{\text{Competition}} \;\longrightarrow\; \underbrace{\text{FSMC Selection \& Pricing}}_{\text{Market Structure}} \;\longrightarrow\; \underbrace{\text{Nutritional Quality}}_{\text{Compliance}} \;\longrightarrow\; \underbrace{\text{Child Health}}_{\text{Outcomes}}$$
+
+\vspace{0.5em}
+
+**Each arrow represents a distinct estimand** — this project aims to identify at least the first two links, with the third as a longer-run goal
+
+\vspace{0.3em}
+
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\textbf{Short-run outcomes}
+\begin{itemize}
+  \item BMI / obesity prevalence
+  \item Attendance rates
+  \item Participation in NSLP/SBP
+\end{itemize}
+\end{column}
+\begin{column}{0.48\textwidth}
+\textbf{Longer-run outcomes}
+\begin{itemize}
+  \item Chronic disease markers
+  \item Academic achievement
+  \item Household food substitution (cereal demand project)
+\end{itemize}
+\end{column}
+\end{columns}
+
+## Community Eligibility Provision as Natural Experiment
+
+**CEP allows high-poverty schools to offer universal free meals**
+
+- Staggered rollout beginning 2014–15 creates plausible quasi-experimental variation
+- Eliminates stigma and administrative barriers → increases participation
+- Variation in timing uncorrelated with district-level health trends (conditional on controls)
+
+\vspace{0.4em}
+
+\begin{block}{Proposed DiD / Event Study Design}
+\begin{itemize}
+  \item Treatment: CEP adoption (staggered by school/district)
+  \item Outcome: child health measures, meal participation, household food expenditure
+  \item Controls: district FEs, year FEs, demographic trends
+  \item Connected to: cereal demand project (substitution vs. complementarity)
+\end{itemize}
+\end{block}
+
+## Health Outcomes: Measurement Challenges
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+
+\textbf{Data challenges}
+
+\begin{itemize}
+  \item BMI data often collected only every few years at school level
+  \item NHANES is nationally representative but not district-identifiable
+  \item Short panel windows limit detection of nutritional effects on obesity
+  \item Selection into FSMC contracts may correlate with baseline health
+\end{itemize}
+
+\end{column}
+\begin{column}{0.42\textwidth}
+
+\begin{exampleblock}{Adrienne's Concern}
+Short-run obesity effects may be \textbf{statistically underpowered} — especially if nutritional changes operate through cumulative exposure
+
+\vspace{0.3em}
+\small \textbf{Response:} Use attendance, participation, and dietary recall as \emph{intermediate} outcomes; frame obesity as a longer-horizon goal
+\end{exampleblock}
+
+\end{column}
+\end{columns}
+
+## Next Steps
+
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+
+\textcolor{StanfordCardinal}{\textbf{Data collection}}
+\begin{itemize}
+  \item FOIA to Michigan MDE: pre-2019 contract lists, AR findings (SY 2013–)
+  \item Outreach to NJ counterparts
+  \item Nielsen/Kilts or Circana panel data for cereal demand
+\end{itemize}
+
+\end{column}
+\begin{column}{0.48\textwidth}
+
+\textcolor{StanfordCool}{\textbf{Analysis}}
+\begin{itemize}
+  \item Construct panel of SFA–FSMC contracts with bid-level data
+  \item Estimate scoring weight effects on entry, price, incumbent retention
+  \item Link to AR compliance and CEP-based health outcomes
+\end{itemize}
+
+\end{column}
+\end{columns}
+
+\vspace{0.5em}
+
+\begin{block}{Open Questions}
+\begin{enumerate}
+  \item How to operationalize Adrienne's concern about short-run obesity outcomes — limitation or design feature?
+  \item What is the right counterfactual for FSMC nutritional quality (vs. self-op)?
+\end{enumerate}
+\end{block}
+
+---
+
+\begin{center}
+{\Large \textcolor{StanfordCardinal}{\textbf{Thank You}}}
+
+\vspace{1em}
+
+{\normalsize Questions \& Discussion}
+
+\vspace{1.5em}
+
+\textcolor{StanfordStone}{\small aswen@stanford.edu}
+\end{center}
